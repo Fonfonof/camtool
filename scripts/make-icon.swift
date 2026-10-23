@@ -1,4 +1,4 @@
-// Draws the CamTool app icon (a bullet camera on a ceiling mount) and writes Packaging/AppIcon.icns.
+// Draws the CamTool app icon (a front-facing camera lens) and writes Packaging/AppIcon.icns.
 // Usage: swift scripts/make-icon.swift
 import AppKit
 
@@ -13,8 +13,12 @@ func fill(_ path: NSBezierPath, _ colors: [NSColor], angle: CGFloat = -90) {
     NSGradient(colors: colors)!.draw(in: path, angle: angle)
 }
 
+func circle(_ center: NSPoint, _ radius: CGFloat) -> NSBezierPath {
+    NSBezierPath(ovalIn: NSRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2))
+}
+
 func drawIcon() {
-    // Background: macOS rounded-square tile, desaturated graphite blue.
+    // Background: macOS rounded-square tile, graphite.
     let tile = NSRect(x: 100, y: 100, width: 824, height: 824)
     let tilePath = NSBezierPath(roundedRect: tile, xRadius: 186, yRadius: 186)
     NSGraphicsContext.saveGraphicsState()
@@ -26,55 +30,53 @@ func drawIcon() {
     color(0x000000).setFill()
     tilePath.fill()
     NSGraphicsContext.restoreGraphicsState()
-    fill(tilePath, [color(0x2A3444), color(0x1A2130), color(0x111620)])
+    fill(tilePath, [color(0x2B3340), color(0x161B24), color(0x0D1117)])
 
+    // Front-facing lens module, centered.
+    let center = NSPoint(x: 512, y: 512)
+
+    // Aluminium bezel with a soft drop shadow.
     NSGraphicsContext.saveGraphicsState()
-    tilePath.addClip()
-
-    // Ceiling mount.
-    let plate = NSBezierPath(roundedRect: NSRect(x: 250, y: 690, width: 220, height: 46), xRadius: 18, yRadius: 18)
-    fill(plate, [color(0xD7DCE4), color(0xA9B1BF)])
-    let arm = NSBezierPath(roundedRect: NSRect(x: 332, y: 540, width: 56, height: 165), xRadius: 22, yRadius: 22)
-    fill(arm, [color(0xC9CFD9), color(0x9099A9)], angle: 0)
-
-    // Bullet camera, tilted down.
-    NSGraphicsContext.saveGraphicsState()
-    let transform = NSAffineTransform()
-    transform.translateX(by: 500, yBy: 480)
-    transform.rotate(byDegrees: -14)
-    transform.concat()
-
-    let body = NSBezierPath(roundedRect: NSRect(x: -270, y: -95, width: 500, height: 190), xRadius: 95, yRadius: 95)
-    NSGraphicsContext.saveGraphicsState()
-    let bodyShadow = NSShadow()
-    bodyShadow.shadowColor = color(0x000000, 0.4)
-    bodyShadow.shadowBlurRadius = 30
-    bodyShadow.shadowOffset = NSSize(width: 0, height: -16)
-    bodyShadow.set()
+    let bezelShadow = NSShadow()
+    bezelShadow.shadowColor = color(0x000000, 0.55)
+    bezelShadow.shadowBlurRadius = 40
+    bezelShadow.shadowOffset = NSSize(width: 0, height: -20)
+    bezelShadow.set()
     color(0xFFFFFF).setFill()
-    body.fill()
+    circle(center, 262).fill()
     NSGraphicsContext.restoreGraphicsState()
-    fill(body, [color(0xF3F5F8), color(0xD5DAE2), color(0xAEB6C3)])
+    fill(circle(center, 262), [color(0xF4F6F9), color(0xD3D8E0), color(0xA7AFBC)])
+    // Thin bevel.
+    fill(circle(center, 236), [color(0x9AA2AF), color(0xE9ECF1)])
 
-    // Sun shield.
-    let visor = NSBezierPath(roundedRect: NSRect(x: -290, y: 70, width: 545, height: 50), xRadius: 25, yRadius: 25)
-    fill(visor, [color(0x3A4252), color(0x232935)])
+    // Dark front plate.
+    fill(circle(center, 228), [color(0x232934), color(0x0C0F15)])
 
-    // Front bezel and lens.
-    let center = NSPoint(x: 205, y: -5)
-    let bezel = NSBezierPath(ovalIn: NSRect(x: center.x - 98, y: center.y - 98, width: 196, height: 196))
-    fill(bezel, [color(0x2C323E), color(0x12151C)])
-    let glass = NSBezierPath(ovalIn: NSRect(x: center.x - 68, y: center.y - 68, width: 136, height: 136))
-    fill(glass, [color(0x0C1220), color(0x15284A), color(0x2A5C9E)], angle: -50)
-    let core = NSBezierPath(ovalIn: NSRect(x: center.x - 30, y: center.y - 30, width: 60, height: 60))
-    color(0x07090E).setFill()
-    core.fill()
-    // Single soft reflection.
-    color(0xFFFFFF, 0.55).setFill()
-    NSBezierPath(ovalIn: NSRect(x: center.x + 12, y: center.y + 22, width: 22, height: 22)).fill()
-    NSGraphicsContext.restoreGraphicsState()
+    // Ring of infrared LEDs.
+    for i in 0..<12 {
+        let angle = CGFloat(i) / 12 * 2 * .pi
+        let led = NSPoint(x: center.x + cos(angle) * 196, y: center.y + sin(angle) * 196)
+        fill(circle(led, 11), [color(0x3A2128), color(0x1A1015)])
+    }
 
-    NSGraphicsContext.restoreGraphicsState()
+    // Glass.
+    fill(circle(center, 168), [color(0x0A0F1A), color(0x1A1F2A)], angle: -90)
+    let glass = circle(center, 150)
+    NSGradient(colors: [color(0x2A5FAE), color(0x0F2F66), color(0x050B18)])!
+        .draw(in: glass, relativeCenterPosition: NSPoint(x: -0.25, y: 0.25))
+
+    // Iris ring and pupil.
+    let iris = circle(center, 92)
+    iris.lineWidth = 3
+    color(0x8DB8FF, 0.16).setStroke()
+    iris.stroke()
+    fill(circle(center, 58), [color(0x05070C), color(0x0B1220)])
+
+    // Single crisp reflection, plus a faint secondary one.
+    color(0xFFFFFF, 0.7).setFill()
+    NSBezierPath(ovalIn: NSRect(x: center.x - 86, y: center.y + 52, width: 46, height: 28)).fill()
+    color(0xFFFFFF, 0.18).setFill()
+    circle(NSPoint(x: center.x + 70, y: center.y - 78), 12).fill()
 
     // Thin inner border for a crisp edge on dark backgrounds.
     let border = NSBezierPath(roundedRect: tile.insetBy(dx: 2, dy: 2), xRadius: 184, yRadius: 184)
