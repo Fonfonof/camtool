@@ -37,6 +37,7 @@ The binary is built for arm64 only; the build deliberately fails on any other pl
 
 ```sh
 make app                    # builds build/CamTool.app
+make install-app            # builds it and copies it to /Applications
 make release                # builds the command-line tool, .build/release/camtool
 sudo make install           # copies the command-line tool to /usr/local/bin
 make test                   # runs the tests
