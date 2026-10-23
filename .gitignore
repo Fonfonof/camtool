@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+.DS_Store
+
+# Never commit firmware or network captures
+*.bin
+*.pcap
+*.pcapng
+
+# Swift
+.build/
+.swiftpm/
+build/
