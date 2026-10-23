@@ -287,3 +287,15 @@ private extension String {
     /// Sorts "192.168.1.9" before "192.168.1.10".
     var ipSortKey: [Int] { split(separator: ".").map { Int($0) ?? 0 } }
 }
+
+#if DEBUG
+extension DeviceStore {
+    /// Fictitious devices for screenshots (see DemoMode).
+    func loadDemo() {
+        devices = DemoMode.devices
+        let selected = DemoMode.devices[1]
+        details[selected.id] = .loaded(DemoMode.selectedDetails)
+        selection = selected.id
+    }
+}
+#endif

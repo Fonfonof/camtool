@@ -4,6 +4,8 @@
 
 Discover, query and configure the Dahua cameras and recorders on your network from your Apple Silicon Mac.
 
+<p align="center"><img src="docs/screenshot.png" width="820" alt="CamTool: device list and device details"></p>
+
 > **Independent project, not affiliated with Dahua Technology.**
 > "Dahua" is a trademark of its owner, used here only to indicate compatibility.
 
@@ -40,6 +42,8 @@ sudo make install           # copies the command-line tool to /usr/local/bin
 make test                   # runs the tests
 ```
 
+For screenshots, a debug build can show made-up devices: `swift build && CAMTOOL_DEMO=1 CAMTOOL_LANG=en .build/debug/CamToolApp`.
+
 ## Code layout
 
 | Directory | Purpose |
@@ -48,6 +52,7 @@ make test                   # runs the tests
 | `Sources/camtool` | Command-line tool |
 | `Sources/CamToolApp` | SwiftUI Mac app |
 | `Packaging`, `scripts` | App bundle metadata, bundling script, icon (drawn by `scripts/make-icon.swift`) |
+| `docs` | Screenshot (fictitious data from the demo mode) |
 | `Tests/CamToolKitTests` | Tests, including a simulated device for the connection |
 
 ## Using the app

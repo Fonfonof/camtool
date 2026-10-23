@@ -12,7 +12,16 @@ struct CamToolApp: App {
             ContentView()
                 .environment(store)
                 .frame(minWidth: 760, minHeight: 460)
-                .task { await store.scan() }
+                .task {
+                    #if DEBUG
+                    if DemoMode.isEnabled {
+                        store.loadDemo()
+                        if let path = DemoMode.snapshotPath { await DemoMode.snapshot(to: path) }
+                        return
+                    }
+                    #endif
+                    await store.scan()
+                }
         }
         .commands {
             CommandGroup(replacing: .appInfo) {
