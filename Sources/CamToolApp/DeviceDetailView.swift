@@ -110,16 +110,25 @@ struct DeviceDetailView: View {
 
     @ViewBuilder private var content: some View {
         if store.needsInitialization(device), case .idle = state {
-            Notice(systemImage: "sparkles", tint: .accentColor,
-                   title: tr("New device", fr: "Appareil neuf"),
-                   message: tr("This device has not been initialized yet. Choose its admin password to start using it.",
-                               fr: "Cet appareil n'a pas encore été initialisé. Choisissez son mot de passe admin pour commencer."))
+            let newCount = store.newDevices.count
+            if newCount > 1 {
+                Notice(systemImage: "sparkles", tint: .accentColor,
+                       title: tr("\(newCount) new devices", fr: "\(newCount) appareils neufs"),
+                       message: tr("Set them all up at once: one password, consecutive addresses.",
+                                   fr: "Configurez-les tous d'un coup : un seul mot de passe, des adresses qui se suivent."),
+                       action: (tr("Select New Devices", fr: "Sélectionner les neufs"), { store.selectNewDevices() }))
+            } else {
+                Notice(systemImage: "sparkles", tint: .accentColor,
+                       title: tr("New device", fr: "Appareil neuf"),
+                       message: tr("This device has not been initialized yet. Choose its admin password to start using it.",
+                                   fr: "Cet appareil n'a pas encore été initialisé. Choisissez son mot de passe admin pour commencer."))
+            }
         }
         if store.duplicateAddresses.contains(device.ip) {
             Notice(systemImage: "exclamationmark.triangle.fill", tint: .orange,
                    title: tr("Address used by several devices", fr: "Adresse utilisée par plusieurs appareils"),
-                   message: tr("Several devices answer at \(device.ip) (often new cameras with the factory address). Connect them one at a time, or change their address one by one, so that CamTool talks to the right one.",
-                               fr: "Plusieurs appareils répondent à \(device.ip) (souvent des caméras neuves à l'adresse d'usine). Branchez-les un par un, ou changez leur adresse une par une, pour que CamTool s'adresse au bon."))
+                   message: tr("Several devices answer at \(device.ip) (often new cameras with the factory address). Select them all in the list (⌘-click) and choose Set Up to initialize them and give each one its own address.",
+                               fr: "Plusieurs appareils répondent à \(device.ip) (souvent des caméras neuves à l'adresse d'usine). Sélectionnez-les tous dans la liste (⌘-clic) puis choisissez « Configurer » pour les initialiser et donner à chacun sa propre adresse."))
         }
         if let alias = store.aliasInUse[device.id] {
             Notice(systemImage: "point.3.connected.trianglepath.dotted", tint: .blue,

@@ -352,4 +352,41 @@ enum TestRSA {
         }
         #expect(!device.calls.contains { $0["method"] == "configManager.setConfig" })
     }
+
+    @Test func initializesThenReaddressesANewDevice() throws {
+        let device = try FakeDevice(password: "Secret123", http: true, uninitialized: true)
+        defer { device.stop() }
+        let plan: BatchReaddress.Plan = ["aa:bb:cc:dd:ee:ff": .init(ip: "192.168.1.150", mask: "255.255.255.0", gateway: "192.168.1.1")]
+        let result = try BatchReaddress.setUpOne(host: "127.0.0.1", initialize: true, user: "ignored", password: "Secret123",
+                                                 plan: plan, port: device.port, timeout: 2, settleDelay: 0)
+        #expect(result.ip == "192.168.1.150")
+        #expect(device.receivedAccount?["name"] == "admin")
+        let methods = device.calls.compactMap { $0["method"]?.stringValue }
+        let initialized = try #require(methods.firstIndex(of: "DevInit.account"))
+        let login = try #require(methods.firstIndex(of: "global.login"))
+        #expect(initialized < login) // never a login attempt before the account exists
+        #expect(methods.contains("configManager.setConfig"))
+    }
+
+    @Test func linkLocalAddress() {
+        func device(_ linkLocal: JSONValue) -> Device {
+            Device(info: ["IPv4Address": ["IPAddress": "192.168.1.108"], "IPv6Address": ["LinkLocalAddress": linkLocal]],
+                   source: "192.168.1.108")
+        }
+        let new = device("fe80::e624:6cff:febc:de8e/64")
+        #expect(new.linkLocalAddress == "fe80::e624:6cff:febc:de8e")
+        #expect(new.linkLocalHost(interface: "en0") == "[fe80::e624:6cff:febc:de8e%25en0]")
+        #expect(new.linkLocalHost(interface: "en0; rm") == nil)
+        #expect(device("/1").linkLocalAddress == nil)
+        #expect(device("2001:db8::1/64").linkLocalAddress == nil)
+        #expect(device("fe80::1\" bad/64").linkLocalAddress == nil)
+    }
+
+    @Test func interfaceTowardADevice() {
+        let interfaces = [LocalNetwork.Interface(name: "bridge0", address: "172.16.0.1", netmask: "255.255.0.0"),
+                          LocalNetwork.Interface(name: "en0", address: "192.168.1.20", netmask: "255.255.255.0"),
+                          LocalNetwork.Interface(name: "en7", address: "10.1.1.5", netmask: "255.255.255.0")]
+        #expect(LocalNetwork.interfaceName(toward: "10.1.1.109", interfaces: interfaces) == "en7")
+        #expect(LocalNetwork.interfaceName(toward: "192.168.0.110", interfaces: interfaces) == "en0")
+    }
 }

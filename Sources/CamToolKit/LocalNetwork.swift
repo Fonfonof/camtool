@@ -35,6 +35,17 @@ public enum LocalNetwork {
         }
     }
 
+    /// The interface leading to `ip`: the one whose subnet contains it, else the first
+    /// Ethernet or Wi-Fi interface (devices on another subnet usually share the same link).
+    public static func interfaceName(toward ip: String, interfaces: [Interface] = interfaces()) -> String? {
+        let target = IPv4(ip)
+        let onLink = interfaces.first { iface in
+            guard let target, let address = IPv4(iface.address), let mask = IPv4(iface.netmask) else { return false }
+            return target.isInSubnet(of: address, mask: mask)
+        }
+        return (onLink ?? interfaces.first { $0.name.hasPrefix("en") })?.name
+    }
+
     /// A free-looking address in the device's subnet for a temporary alias on this Mac:
     /// the highest host addresses first, skipping the device, its gateway and `taken`.
     public static func aliasAddress(for device: Device, taken: [String] = []) -> (address: String, netmask: String)? {

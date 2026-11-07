@@ -86,6 +86,22 @@ public enum BatchReaddress {
         return order
     }
 
+    /// Initializes the device at `host` if `initialize` is set (admin account, `password`), then
+    /// gives it the address planned for it (see `readdressOne`).
+    public static func setUpOne(host: String, initialize: Bool, user: String, password: String, email: String = "",
+                                plan: Plan, port: UInt16 = 80, timeout: Double = 5, settleDelay: Double = 3,
+                                onInitialized: () -> Void = {}) throws -> Result {
+        if initialize {
+            try DeviceSetup.initialize(host: host, port: port, timeout: timeout, password: password, email: email)
+            onInitialized()
+            // The device needs a moment to apply the new account: logging in too early fails
+            // and counts against it.
+            Thread.sleep(forTimeInterval: settleDelay)
+        }
+        return try readdressOne(host: host, user: initialize ? DeviceSetup.adminUser : user, password: password,
+                                plan: plan, port: port, timeout: timeout)
+    }
+
     /// Logs in at `host`, identifies the device answering by its MAC, and writes the address
     /// planned for it. Throws if that device is not in the plan.
     public static func readdressOne(host: String, user: String, password: String, plan: Plan,
@@ -121,5 +137,26 @@ public enum BatchReaddress {
             // The device may switch address before answering: the change is likely applied.
             return Result(mac: mac, ip: target.ip, confirmed: false)
         }
+    }
+}
+
+extension Device {
+    /// The device's IPv6 link-local address (fe80::…), derived from its MAC. Unlike its IPv4
+    /// address, it is unique even among factory-new devices that all share 192.168.1.108,
+    /// and it is reachable on the local link whatever the IPv4 subnet.
+    public var linkLocalAddress: String? {
+        guard let value = raw["IPv6Address"]?["LinkLocalAddress"]?.stringValue,
+              let address = value.split(separator: "/").first.map({ $0.lowercased() }),
+              address.hasPrefix("fe80:"), address.allSatisfy({ $0.isHexDigit || $0 == ":" })
+        else { return nil }
+        return address
+    }
+
+    /// The link-local address as a URL host, scoped to `interface` (e.g. "[fe80::1%25en0]").
+    public func linkLocalHost(interface: String) -> String? {
+        guard let address = linkLocalAddress, !interface.isEmpty,
+              interface.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) })
+        else { return nil }
+        return "[\(address)%25\(interface)]"
     }
 }

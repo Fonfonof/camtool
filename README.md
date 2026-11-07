@@ -21,7 +21,7 @@ Discover, query and configure the Dahua cameras and recorders on your network fr
 | ✅ | Device information and configuration reading |
 | ✅ | Network settings changes (IP, mask, gateway, DNS, DHCP) with validation and confirmation |
 | ✅ | Devices on another subnet reached through a temporary address on the Mac |
-| 🚧 | Batch addressing (consecutive addresses for several devices) — core done, app screen to come |
+| ✅ | Batch setup: initialize several new devices and give them consecutive addresses in one go, even when they all share 192.168.1.108 |
 | 🚧 | Firmware update from a file supplied by the user |
 
 The Mac app covers everything above; the command-line tool covers discovery and reading.
@@ -61,6 +61,12 @@ For screenshots, a debug build can show made-up devices: `swift build && CAMTOOL
 1. Open CamTool: it searches the network right away (⌘R to search again).
 2. Select a device. A **New** badge marks a factory-new device: click **Initialize…** and choose its admin password.
 3. Click **Connect**, then **Change IP…** on the Network card.
+
+### Several devices at once
+
+Select several devices with ⌘-click (or click **Select New Devices** when CamTool finds more than one new device), then **Set Up…**. Choose the admin password and the first address: devices get consecutive addresses (.110, .111, …) in list order, skipping addresses already in use. New devices are initialized first; every device is then readdressed.
+
+Factory-new devices all answer at 192.168.1.108, so CamTool reaches each one through its IPv6 link-local address, which is unique per device and needs no setup on the Mac. The run stops at the first refused password, so that a wrong password cannot lock every device in turn.
 
 CamTool always checks that the device answering is the one selected (by its MAC address) before writing anything, which matters when several new devices share the factory address 192.168.1.108. Each login is attempted once only.
 

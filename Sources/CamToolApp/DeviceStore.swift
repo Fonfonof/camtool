@@ -42,7 +42,11 @@ final class DeviceStore {
     }
 
     func dismissNotice(for id: Device.ID) { notices[id] = nil }
-    var selection: Device.ID?
+    var selection: Set<Device.ID> = []
+
+    /// Progress of the last multi-device setup, per device.
+    private(set) var batchSteps: [Device.ID: BatchStep] = [:]
+    private(set) var isBatchRunning = false
 
     /// Credentials of the current session, kept in memory only (never written to disk)
     /// so that edits don't ask for the password again. Cleared on disconnect.
@@ -70,6 +74,20 @@ final class DeviceStore {
 
     func device(_ id: Device.ID?) -> Device? { devices.first { $0.id == id } }
 
+    /// Selected devices in the order addresses are handed out: by IP, then by MAC so that
+    /// devices sharing an address always come in the same order.
+    var selectedDevices: [Device] {
+        devices.filter { selection.contains($0.id) }
+            .sorted { $0.ip == $1.ip ? $0.mac < $1.mac : $0.ip.ipSortKey.lexicographicallyPrecedes($1.ip.ipSortKey) }
+    }
+
+    var newDevices: [Device] { devices.filter(needsInitialization) }
+
+    func selectNewDevices() { selection = Set(newDevices.map(\.id)) }
+
+    /// True when the session already holds a password for this device.
+    func isConnected(_ device: Device) -> Bool { credentials[device.id] != nil }
+
     func detailState(for device: Device) -> DetailState { details[device.id] ?? .idle }
 
     func scan() async {
@@ -94,7 +112,8 @@ final class DeviceStore {
         } catch {
             scanError = String(describing: error)
         }
-        if selection == nil || device(selection) == nil { selection = devices.first?.id }
+        selection = selection.filter { id in devices.contains { $0.id == id } }
+        if selection.isEmpty, let first = devices.first { selection = [first.id] }
     }
 
     /// Logs in once, reads the device info and network configuration, then logs out.
@@ -251,6 +270,106 @@ final class DeviceStore {
     }
 }
 
+enum BatchStep: Equatable {
+    case waiting, initializing, addressing
+    case done(ip: String, confirmed: Bool)
+    case failed(String)
+    case skipped(String)
+}
+
+extension DeviceStore {
+    /// Initializes the new devices among `items` and gives each one its planned address.
+    ///
+    /// Devices are reached by their IPv6 link-local address, which is unique even when several
+    /// share 192.168.1.108. Without one, a device is reached by its IPv4 address only if no
+    /// other device uses it. The run stops at the first refused password, so that a wrong
+    /// password cannot lock every device in turn.
+    func runBatch(_ items: [(device: Device, target: BatchReaddress.Target)], password: String, email: String) async {
+        guard !isBatchRunning, !items.isEmpty,
+              let order = BatchReaddress.executionOrder(current: items.map(\.device.ip), targets: items.map(\.target.ip))
+        else { return }
+        isBatchRunning = true
+        defer { isBatchRunning = false }
+        batchSteps = Dictionary(uniqueKeysWithValues: items.map { ($0.device.id, BatchStep.waiting) })
+
+        var currentAddresses = items.map(\.device.ip)
+        var stopReason: String?
+        for index in order {
+            let (device, target) = items[index]
+            let id = device.id
+            if let stopReason {
+                batchSteps[id] = .skipped(stopReason)
+                continue
+            }
+            // Only happens when an earlier device failed and kept its address.
+            if currentAddresses.indices.contains(where: { $0 != index && currentAddresses[$0] == target.ip }) {
+                batchSteps[id] = .skipped(tr("\(target.ip) is still used by another selected device.",
+                                             fr: "\(target.ip) est encore utilisée par un autre appareil sélectionné."))
+                continue
+            }
+            guard !device.mac.isEmpty else {
+                batchSteps[id] = .failed(tr("The device did not report its MAC address.", fr: "L'appareil n'a pas indiqué son adresse MAC."))
+                continue
+            }
+            details[id] = .idle
+            notices[id] = nil
+            do {
+                let route = try await batchRoute(to: device)
+                let login = credentials[id] ?? (DeviceSetup.adminUser, password)
+                let plan = [device.mac.lowercased(): target]
+                batchSteps[id] = route.uninitialized ? .initializing : .addressing
+                let result = try await Task.detached {
+                    try BatchReaddress.setUpOne(host: route.host, initialize: route.uninitialized, user: login.user,
+                                                password: route.uninitialized ? password : login.password, email: email,
+                                                plan: plan) {
+                        Task { @MainActor in
+                            self.initializedHere.insert(id)
+                            if self.batchSteps[id] == .initializing { self.batchSteps[id] = .addressing }
+                        }
+                    }
+                }.value
+                currentAddresses[index] = result.ip
+                credentials[id] = nil
+                batchSteps[id] = .done(ip: result.ip, confirmed: result.confirmed)
+            } catch let error as RPCError where error.isAuthentication {
+                batchSteps[id] = .failed(error.description)
+                stopReason = tr("Stopped after a refused password, so as not to lock the other devices.",
+                                fr: "Arrêté après un mot de passe refusé, pour ne pas verrouiller les autres appareils.")
+            } catch {
+                batchSteps[id] = .failed(String(describing: error))
+            }
+        }
+
+        // Give the devices time to switch address, then show them where they now are.
+        try? await Task.sleep(for: .seconds(4))
+        await scan()
+        for item in items {
+            if let updated = device(item.device.id) { _ = await releaseAliasIfUnneeded(for: updated) }
+        }
+    }
+
+    /// How to reach one device of a batch, and whether it still needs initializing
+    /// (asked to the device itself, without logging in: discovery can lag behind).
+    private func batchRoute(to device: Device) async throws -> (host: String, uninitialized: Bool) {
+        func status(_ host: String) async -> InitStatus? {
+            try? await Task.detached { try DeviceSetup.status(host: host, timeout: 3).initStatus }.value
+        }
+        if let interface = LocalNetwork.interfaceName(toward: device.ip, interfaces: aliases.permanentInterfaces()),
+           let host = device.linkLocalHost(interface: interface),
+           let status = await status(host) {
+            return (host, status == .uninitialized)
+        }
+        guard !duplicateAddresses.contains(device.ip) else {
+            throw SocketError.other(tr(
+                "Other devices also answer at \(device.ip) and this one cannot be told apart from them. Connect it on its own.",
+                fr: "D'autres appareils répondent aussi à \(device.ip) et celui-ci ne peut pas être distingué. Branchez-le seul."))
+        }
+        try await reach(device)
+        let status = await status(device.ip)
+        return (device.ip, status.map { $0 == .uninitialized } ?? needsInitialization(device))
+    }
+}
+
 extension DeviceStore {
     enum AliasRelease { case notNeeded, removed, kept(String) }
 
@@ -295,7 +414,7 @@ extension DeviceStore {
         devices = DemoMode.devices
         let selected = DemoMode.devices[1]
         details[selected.id] = .loaded(DemoMode.selectedDetails)
-        selection = selected.id
+        selection = [selected.id]
     }
 }
 #endif

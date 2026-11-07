@@ -14,7 +14,9 @@ struct ContentView: View {
             .overlay { sidebarPlaceholder }
             .safeAreaInset(edge: .bottom) { footer }
         } detail: {
-            if let device = store.device(store.selection) {
+            if store.selection.count > 1 {
+                BatchView()
+            } else if let id = store.selection.first, let device = store.device(id) {
                 DeviceDetailView(device: device)
                     .id(device.id)
             } else {
@@ -63,11 +65,17 @@ struct ContentView: View {
     }
 
     private var footer: some View {
-        Text(tr("\(store.devices.count) device(s)", fr: "\(store.devices.count) appareil(s)"))
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
+        VStack(spacing: 2) {
+            Text(tr("\(store.devices.count) device(s)", fr: "\(store.devices.count) appareil(s)"))
+            if store.devices.count > 1 {
+                Text(tr("⌘-click to select several", fr: "⌘-clic pour en sélectionner plusieurs"))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 6)
     }
 }
 
