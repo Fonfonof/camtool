@@ -11,7 +11,7 @@ struct CamTool: ParsableCommand {
                       fr: "Outil de configuration pour caméras et enregistreurs Dahua (macOS Apple Silicon uniquement)."),
         discussion: tr("The password is prompted interactively, or read from the CAMTOOL_PASSWORD variable. Set CAMTOOL_LANG=en or fr to force the language.",
                         fr: "Le mot de passe est demandé de façon interactive, ou lu dans la variable CAMTOOL_PASSWORD. CAMTOOL_LANG=en ou fr force la langue."),
-        version: "camtool 0.1.0",
+        version: "camtool 0.2.0",
         subcommands: [Discover.self, Info.self, Config.self, Call.self]
     )
 }
