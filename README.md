@@ -4,10 +4,12 @@
 
 Discover, query and configure the Dahua cameras and recorders on your network from your Apple Silicon Mac.
 
+Dahua's own ConfigTool only runs on Windows. CamTool is a native Mac alternative for the everyday jobs: finding devices, initializing new ones and setting their addresses, one by one or in batches.
+
 <p align="center"><img src="docs/screenshot.png" width="820" alt="CamTool: device list and device details"></p>
 
 > **Independent project, not affiliated with Dahua Technology.**
-> "Dahua" is a trademark of its owner, used here only to indicate compatibility.
+> "Dahua" and "ConfigTool" are trademarks of their owner, used here only to indicate compatibility.
 
 > **🍎 macOS on Apple Silicon only (M1 or later).**
 > CamTool does not build for Intel Macs, Linux or Windows.
