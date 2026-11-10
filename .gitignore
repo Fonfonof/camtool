@@ -16,3 +16,6 @@ dist/
 .build/
 .swiftpm/
 build/
+
+# Personal screenshots dropped in the project folder
+Screenshot*.png
