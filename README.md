@@ -31,15 +31,26 @@ The Mac app covers everything above; the command-line tool covers discovery and 
 ## Requirements
 
 - Mac with Apple Silicon (M1, M2, M3, M4…), macOS 14 Sonoma or later
-- To build: Xcode with Swift 6 (the Command Line Tools alone cannot build the SwiftUI app)
+- To build from source: Xcode with Swift 6 (the Command Line Tools alone cannot build the SwiftUI app)
 
-The binary is built for arm64 only; the build deliberately fails on any other platform. `make app` signs the app ad hoc, which is enough to run it on the Mac that built it.
+The binary is built for arm64 only; the build deliberately fails on any other platform. `make app` signs the app ad hoc: it runs as is on the Mac that built it, and after a one-time approval on another Mac (see below).
 
 ## Installation
+
+### Download
+
+1. Download `CamTool-x.y.z.dmg` from the [latest release](https://github.com/Fonfonof/camtool/releases/latest).
+2. Open it and drag **CamTool** onto **Applications**.
+3. The app is not notarized by Apple, so macOS blocks its first launch. Open CamTool once, dismiss the warning, then go to **System Settings → Privacy & Security** and click **Open Anyway**. This is needed only once.
+
+In Terminal, this does the same as step 3: `xattr -dr com.apple.quarantine /Applications/CamTool.app`
+
+### Build from source
 
 ```sh
 make app                    # builds build/CamTool.app
 make install-app            # builds it and copies it to /Applications
+make dmg                    # builds build/CamTool-x.y.z.dmg
 make release                # builds the command-line tool, .build/release/camtool
 sudo make install           # copies the command-line tool to /usr/local/bin
 make test                   # runs the tests

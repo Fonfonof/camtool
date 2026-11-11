@@ -13,6 +13,8 @@ BIN="$(swift build -c release --show-bin-path)/CamToolApp"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/CamToolApp"
+# Debug symbols embed the build machine's paths (and so the user name): drop them.
+strip -S -x "$APP/Contents/MacOS/CamToolApp" 2>/dev/null
 cp Packaging/Info.plist "$APP/Contents/Info.plist"
 cp -R Packaging/en.lproj Packaging/fr.lproj "$APP/Contents/Resources/"
 cp Packaging/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"

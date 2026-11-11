@@ -1,6 +1,6 @@
 PREFIX ?= /usr/local
 
-.PHONY: build release test install app install-app clean
+.PHONY: build release test install app install-app dmg clean
 
 build:
 	swift build
@@ -21,6 +21,9 @@ app:
 install-app: app
 	rm -rf /Applications/CamTool.app
 	ditto build/CamTool.app /Applications/CamTool.app
+
+dmg: app
+	scripts/make-dmg.sh
 
 clean:
 	rm -rf .build build
